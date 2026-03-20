@@ -553,39 +553,17 @@ function getStats() {
   const decided = proposed2026.filter(d => d.status === 'Closed' || d.status === 'Lost').length;
   const rate = decided > 0 ? won / decided : (won > 0 ? 1 : 0);
 
-  const closedByClient = {};
-  state.deals.filter(d => d.status === 'Closed').forEach(d => {
-    closedByClient[d.client] = (closedByClient[d.client] || 0) + (d.closedAmount || d.amount);
+  // CR comes directly from column N (24 AR) in Pipeline sheet — source of truth
+  // isPaid flag comes from M.Date column = 'PAID'
+  const crByClient = {};
+  state.deals.forEach(d => {
+    if (d.isPaid) return;
+    if (d.ar && d.ar > 0) {
+      crByClient[d.client] = (crByClient[d.client] || 0) + d.ar;
+    }
   });
-  const paidByClient = {};
-  state.payments.forEach(p => { paidByClient[p.client] = (paidByClient[p.client] || 0) + p.amount; });
-
-  // fuzzy match: check if payment client name contains deal client name or vice versa
-  function getPaid(dealClient) {
-    const dc = dealClient.toLowerCase().trim();
-    let total = paidByClient[dealClient] || 0;
-    Object.entries(paidByClient).forEach(([pc, amt]) => {
-      if (pc === dealClient) return; // already counted
-      const p = pc.toLowerCase().trim();
-      if (p.includes(dc) || dc.includes(p) || p.split(' ')[0] === dc.split(' ')[0]) {
-        total += amt;
-      }
-    });
-    return total;
-  }
-
-  // also treat PAID status in payments as fully settled
-  const paidInFull = new Set(
-    state.payments.filter(p => (p.note||'').toUpperCase() === 'PAID' || (p.note||'').toUpperCase() === 'PAID IN FULL').map(p => p.client.toLowerCase().trim())
-  );
-
-  const crRows = Object.entries(closedByClient)
-    .map(([c,v]) => {
-      const dc = c.toLowerCase().trim();
-      const fullyPaid = paidInFull.has(dc) || [...paidInFull].some(p => p.includes(dc) || dc.includes(p));
-      if (fullyPaid) return { client: c, cr: 0 };
-      return { client: c, cr: Math.max(0, v - getPaid(c)) };
-    })
+  const crRows = Object.entries(crByClient)
+    .map(([c, cr]) => ({ client: c, cr }))
     .filter(r => r.cr > 0)
     .sort((a,b) => b.cr - a.cr);
   const totalCR = crRows.reduce((s,r) => s + r.cr, 0);
