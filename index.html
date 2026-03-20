@@ -440,15 +440,10 @@ let chartInst = null;
 
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    config = JSON.parse(saved);
-    if (config.scriptUrl || config.localMode) {
-      document.getElementById('setup-overlay').style.display = 'none';
-      init();
-    }
-  }
+  // Always hide setup overlay — URL is baked in
+  document.getElementById('setup-overlay').style.display = 'none';
   document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+  init();
 });
 
 function init() {
