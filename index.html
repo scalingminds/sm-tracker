@@ -559,8 +559,33 @@ function getStats() {
   });
   const paidByClient = {};
   state.payments.forEach(p => { paidByClient[p.client] = (paidByClient[p.client] || 0) + p.amount; });
+
+  // fuzzy match: check if payment client name contains deal client name or vice versa
+  function getPaid(dealClient) {
+    const dc = dealClient.toLowerCase().trim();
+    let total = paidByClient[dealClient] || 0;
+    Object.entries(paidByClient).forEach(([pc, amt]) => {
+      if (pc === dealClient) return; // already counted
+      const p = pc.toLowerCase().trim();
+      if (p.includes(dc) || dc.includes(p) || p.split(' ')[0] === dc.split(' ')[0]) {
+        total += amt;
+      }
+    });
+    return total;
+  }
+
+  // also treat PAID status in payments as fully settled
+  const paidInFull = new Set(
+    state.payments.filter(p => (p.note||'').toUpperCase() === 'PAID' || (p.note||'').toUpperCase() === 'PAID IN FULL').map(p => p.client.toLowerCase().trim())
+  );
+
   const crRows = Object.entries(closedByClient)
-    .map(([c,v]) => ({ client: c, cr: Math.max(0, v - (paidByClient[c] || 0)) }))
+    .map(([c,v]) => {
+      const dc = c.toLowerCase().trim();
+      const fullyPaid = paidInFull.has(dc) || [...paidInFull].some(p => p.includes(dc) || dc.includes(p));
+      if (fullyPaid) return { client: c, cr: 0 };
+      return { client: c, cr: Math.max(0, v - getPaid(c)) };
+    })
     .filter(r => r.cr > 0)
     .sort((a,b) => b.cr - a.cr);
   const totalCR = crRows.reduce((s,r) => s + r.cr, 0);
