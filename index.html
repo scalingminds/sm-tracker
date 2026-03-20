@@ -618,18 +618,28 @@ function renderOverview() {
     alert.style.display = 'none';
   }
 
-  // Goals
+  // Goals — gold marker shows where we are in the year
+  const now = new Date();
+  const yearPct = Math.round((now - new Date(now.getFullYear(), 0, 1)) / (new Date(now.getFullYear(), 11, 31) - new Date(now.getFullYear(), 0, 1)) * 100);
   const g = document.getElementById('goals-card');
   g.innerHTML = [
     { label: 'Revenue (YTD)', actual: s.totalClosed, goal: revGoal },
     { label: 'Proposals (YTD)', actual: s.totalProposed, goal: propGoal },
   ].map(row => {
-    const pct = Math.min(100, Math.round(row.actual / row.goal * 100));
-    const color = pct >= 100 ? '#1B4332' : pct >= 50 ? '#D68910' : '#378ADD';
-    return `<div class="prog-wrap">
+    const pct      = Math.min(100, Math.round(row.actual / row.goal * 100));
+    const ahead    = pct >= yearPct;
+    const barColor = pct >= 100 ? '#1B4332' : ahead ? '#1D9E75' : '#C0392B';
+    const note     = pct >= 100 ? 'Goal hit' : ahead ? 'Ahead of pace' : 'Behind pace';
+    return `<div class="prog-wrap" style="position:relative;">
       <div class="prog-labels"><span>${row.label}</span><span style="font-weight:500;">${fmt(row.actual)} / ${fmt(row.goal)}</span></div>
-      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color};"></div></div>
-      <div class="prog-note" style="color:${color};">${pct}%</div>
+      <div class="prog-bar" style="position:relative;overflow:visible;">
+        <div class="prog-fill" style="width:${pct}%;background:${barColor};"></div>
+        <div style="position:absolute;top:-3px;left:${yearPct}%;width:2px;height:13px;background:#B8860B;border-radius:1px;" title="${yearPct}% of year elapsed"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px;">
+        <span style="font-size:10px;color:#B8860B;">${yearPct}% of year elapsed</span>
+        <span style="font-size:10px;font-weight:500;color:${barColor};">${pct}% — ${note}</span>
+      </div>
     </div>`;
   }).join('');
 
