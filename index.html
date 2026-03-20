@@ -296,12 +296,12 @@
         <div class="metric-sub" id="m-proposed-sub"></div>
       </div>
       <div class="metric green-accent">
-        <div class="metric-label">Total closed</div>
+        <div class="metric-label">Contracts closed</div>
         <div class="metric-value" id="m-closed">—</div>
         <div class="metric-sub" id="m-closed-sub"></div>
       </div>
       <div class="metric green-accent">
-        <div class="metric-label">In bank / deposited</div>
+        <div class="metric-label">Revenue to date</div>
         <div class="metric-value" id="m-rate">—</div>
         <div class="metric-sub" id="m-rate-sub"></div>
       </div>
@@ -617,8 +617,10 @@ function renderOverview() {
   const now = new Date();
   const yearPct = Math.round((now - new Date(now.getFullYear(), 0, 1)) / (new Date(now.getFullYear(), 11, 31) - new Date(now.getFullYear(), 0, 1)) * 100);
   const g = document.getElementById('goals-card');
+  const totalInBank2 = state.deals.reduce((sum, d) => sum + (d.inBank || 0), 0);
   g.innerHTML = [
-    { label: 'Revenue (YTD)', actual: s.totalClosed, goal: revGoal },
+    { label: 'Revenue to date', actual: totalInBank2, goal: revGoal },
+    { label: 'Contracts closed (YTD)', actual: s.totalClosed, goal: revGoal },
     { label: 'Proposals (YTD)', actual: s.totalProposed, goal: propGoal },
   ].map(row => {
     const pct      = Math.min(100, Math.round(row.actual / row.goal * 100));
