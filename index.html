@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scaling Minds — 2026 Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  /* ── REPLACE THIS URL after you deploy the Apps Script ── */
+  :root {
+    --green:   #1B4332;
+    --green-mid: #2D6A4F;
+    --green-light: #D8F3DC;
+    --gold:    #B8860B;
+    --gold-light: #FFF8E1;
+    --cream:   #F8F5EF;
+    --red:     #C0392B;
+    --red-light: #FDEDEC;
+    --amber:   #D68910;
+    --amber-light: #FEF9E7;
+    --ink:     #1A1A1A;
+    --ink-mid: #4A4A4A;
+    --ink-muted: #8A8A8A;
+    --border:  #E5E0D8;
+    --white:   #FFFFFF;
+    --radius:  10px;
+    --radius-lg: 14px;
+    --shadow:  0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--green);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-logo {
+    width: 40px; height: 40px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 600; color: var(--white);
+  }
+  .header-title { color: var(--white); font-size: 17px; font-weight: 500; }
+  .header-sub { color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
+  .sync-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: var(--white);
+    border-radius: var(--radius);
+    padding: 7px 14px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sync-btn:hover { background: rgba(255,255,255,0.2); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+  .sync-dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+  .sync-dot.error { background: #f87171; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── NAV ── */
+  .nav {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex; gap: 0;
+  }
+  .nav-tab {
+    padding: 13px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  /* ── LAYOUT ── */
+  .main { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+  .section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-muted); margin-bottom: 12px;
+  }
+  .section { margin-bottom: 28px; display: none; }
+  .section.active { display: block; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media(max-width:680px){ .two-col,.three-col { grid-template-columns: 1fr; } }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+  }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--ink-muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* ── METRIC CARDS ── */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .metric { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
+  .metric-label { font-size: 11px; color: var(--ink-muted); margin-bottom: 6px; font-weight: 500; }
+  .metric-value { font-size: 24px; font-weight: 600; color: var(--ink); font-family: 'DM Mono', monospace; }
+  .metric-sub { font-size: 11px; color: var(--ink-muted); margin-top: 4px; }
+  .metric.green-accent { border-left: 3px solid var(--green-mid); }
+  .metric.gold-accent  { border-left: 3px solid var(--gold); }
+  .metric.red-accent   { border-left: 3px solid var(--red); }
+
+  /* ── ALERT ── */
+  .alert { border-radius: var(--radius); padding: 12px 16px; font-size: 13px; margin-bottom: 20px; }
+  .alert-red    { background: var(--red-light); color: var(--red); border: 1px solid #f5b7b1; }
+  .alert-amber  { background: var(--amber-light); color: #7d6608; border: 1px solid #f9e79f; }
+  .alert-green  { background: var(--green-light); color: var(--green); border: 1px solid #b7e4c7; }
+
+  /* ── TABLE ROWS ── */
+  .trow { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; gap: 8px; }
+  .trow:last-child { border-bottom: none; }
+  .trow-hdr { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); padding: 8px 0; border-bottom: 1px solid var(--border); }
+
+  /* ── BADGES ── */
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .05em; }
+  .badge-closed   { background: var(--green-light); color: var(--green); }
+  .badge-verbal   { background: var(--amber-light); color: #7d6608; }
+  .badge-proposed { background: #EBF5FB; color: #1A5276; }
+  .badge-lost     { background: var(--red-light); color: var(--red); }
+
+  /* ── PROGRESS ── */
+  .prog-wrap { margin-bottom: 16px; }
+  .prog-wrap:last-child { margin-bottom: 0; }
+  .prog-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-mid); margin-bottom: 6px; }
+  .prog-bar { height: 7px; background: var(--cream); border-radius: 4px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+  .prog-note { font-size: 10px; color: var(--ink-muted); margin-top: 4px; }
+
+  /* ── FORMS ── */
+  .form-section { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 110px; }
+  .form-group label { font-size: 11px; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .form-group input,
+  .form-group select {
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0 10px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form-group input:focus,
+  .form-group select:focus { border-color: var(--green-mid); }
+
+  .btn {
+    height: 36px;
+    padding: 0 18px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    border: none;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-green { background: var(--green); color: var(--white); }
+  .btn-green:hover { opacity: .88; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--ink-mid); }
+  .btn-outline:hover { background: var(--cream); }
+  .btn-danger { background: var(--red); color: var(--white); }
+  .btn-sm { height: 28px; padding: 0 10px; font-size: 11px; border-radius: 6px; }
+
+  /* ── SETUP OVERLAY ── */
+  #setup-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .setup-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .setup-card h2 { font-size: 18px; margin-bottom: 8px; color: var(--green); }
+  .setup-card p  { font-size: 13px; color: var(--ink-mid); line-height: 1.6; margin-bottom: 16px; }
+  .setup-card ol { font-size: 13px; color: var(--ink-mid); line-height: 2; padding-left: 18px; margin-bottom: 20px; }
+  .setup-card code { font-family: 'DM Mono', monospace; background: var(--cream); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--green); }
+  .url-input { width: 100%; height: 38px; border: 1px solid var(--border); border-radius: var(--radius); padding: 0 12px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 12px; }
+  .url-input:focus { border-color: var(--green-mid); }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--ink);
+    color: var(--white);
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity .25s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── LOADING ── */
+  .loading { text-align: center; padding: 40px; color: var(--ink-muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY -->
+<div id="setup-overlay">
+  <div class="setup-card">
+    <h2>Connect to Google Sheets</h2>
+    <p>This dashboard reads and writes directly to your spreadsheet. You need to set up the Apps Script bridge once — takes about 5 minutes.</p>
+    <ol>
+      <li>Open your Google Sheet</li>
+      <li>Click <strong>Extensions → Apps Script</strong></li>
+      <li>Delete any existing code, paste in <code>Code.gs</code></li>
+      <li>Save, then run <code>setupSheets()</code> once (sets up headers + seed data)</li>
+      <li>Click <strong>Deploy → New deployment → Web app</strong></li>
+      <li>Set <em>Execute as</em>: Me — <em>Who has access</em>: Anyone</li>
+      <li>Copy the deployment URL and paste it below</li>
+    </ol>
+    <input class="url-input" id="script-url-input" placeholder="https://script.google.com/macros/s/..." />
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-green" onclick="saveScriptUrl()">Connect dashboard</button>
+      <button class="btn btn-outline" onclick="useLocalMode()">Use offline (browser only)</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">SM</div>
+    <div>
+      <div class="header-title">Scaling Minds — 2026</div>
+      <div class="header-sub" id="header-sub">Business tracker</div>
+    </div>
+  </div>
+  <button class="sync-btn" onclick="syncNow()">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-label">Sync</span>
+  </button>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-tab active" onclick="showTab('overview')">Overview</div>
+  <div class="nav-tab" onclick="showTab('pipeline')">Pipeline</div>
+  <div class="nav-tab" onclick="showTab('payments')">Payments</div>
+  <div class="nav-tab" onclick="showTab('settings')">Settings</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- OVERVIEW -->
+  <div class="section active" id="sec-overview">
+    <div id="alert-box" class="alert alert-red" style="display:none;"></div>
+    <div class="section-label">YTD snapshot</div>
+    <div class="metric-grid">
+      <div class="metric green-accent">
+        <div class="metric-label">Total closed</div>
+        <div class="metric-value" id="m-closed">—</div>
+        <div class="metric-sub" id="m-closed-sub"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Total proposed</div>
+        <div class="metric-value" id="m-proposed">—</div>
+        <div class="metric-sub" id="m-proposed-sub"></div>
+      </div>
+      <div class="metric green-accent">
+        <div class="metric-label">Close rate</div>
+        <div class="metric-value" id="m-rate">—</div>
+        <div class="metric-sub" id="m-rate-sub"></div>
+      </div>
+      <div class="metric gold-accent">
+        <div class="metric-label">Cash on hand</div>
+        <div class="metric-value" id="m-cash">—</div>
+        <div class="metric-sub" id="m-runway"></div>
+      </div>
+      <div class="metric gold-accent">
+        <div class="metric-label">Contracted revenue (CR)</div>
+        <div class="metric-value" id="m-cr">—</div>
+        <div class="metric-sub">Signed, due this year</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-label">Goals vs actuals</div>
+        <div class="card" id="goals-card"></div>
+      </div>
+      <div>
+        <div class="section-label">CR by client</div>
+        <div class="card" style="padding:10px 20px;" id="cr-table"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Monthly revenue</div>
+    <div class="card">
+      <div style="display:flex;gap:20px;margin-bottom:14px;font-size:12px;color:var(--ink-muted);">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#B5D4F4;display:inline-block;"></span>Proposed</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#2D6A4F;display:inline-block;"></span>Closed</span>
+      </div>
+      <div style="position:relative;width:100%;height:220px;"><canvas id="revChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PIPELINE -->
+  <div class="section" id="sec-pipeline">
+    <div class="section-label">Add new deal</div>
+    <div class="form-section">
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group" style="flex:2;min-width:150px;"><label>Client / org</label><input id="p-client" placeholder="Client name" /></div>
+        <div class="form-group"><label>Proposed ($)</label><input id="p-amount" type="number" placeholder="0" /></div>
+        <div class="form-group"><label>Type</label>
+          <select id="p-type"><option>Team</option><option>1-1</option><option>Speaking</option><option>Other</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Month</label>
+          <select id="p-month"><option>Jan</option><option>Feb</option><option>Mar</option><option selected>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select>
+        </div>
+        <div class="form-group" style="flex:2;"><label>Referral source</label><input id="p-referral" placeholder="Optional" /></div>
+        <div class="form-group"><label>Status</label>
+          <select id="p-status"><option>Proposed</option><option>Verbal</option><option>Closed</option><option>Lost</option></select>
+        </div>
+        <button class="btn btn-green" onclick="addDeal()" style="margin-top:auto;">Add deal</button>
+      </div>
+    </div>
+
+    <div class="section-label">All deals</div>
+    <div class="card" style="padding:10px 20px;" id="pipeline-table">
+      <div class="loading"><span class="spinner"></span>Loading...</div>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div class="section" id="sec-payments">
+    <div class="section-label">Log a payment received</div>
+    <div class="form-section">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;min-width:150px;"><label>Client</label><select id="pay-client"></select></div>
+        <div class="form-group"><label>Amount ($)</label><input id="pay-amount" type="number" placeholder="0" /></div>
+        <div class="form-group"><label>Date</label><input id="pay-date" type="date" /></div>
+        <div class="form-group" style="flex:2;"><label>Note (optional)</label><input id="pay-note" placeholder="Partial, paid in full, etc." /></div>
+        <button class="btn btn-green" onclick="logPayment()" style="margin-top:auto;">Log payment</button>
+      </div>
+    </div>
+
+    <div class="section-label">Payment history</div>
+    <div class="card" style="padding:10px 20px;" id="payment-table">
+      <div class="loading"><span class="spinner"></span>Loading...</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="section" id="sec-settings">
+    <div class="section-label">Weekly BD health</div>
+    <div class="form-section">
+      <div class="form-row">
+        <div class="form-group"><label>Cash on hand ($)</label><input id="s-cash" type="number" /></div>
+        <div class="form-group"><label>Weekly burn ($)</label><input id="s-burn" type="number" /></div>
+        <button class="btn btn-green" onclick="saveSettings()" style="margin-top:auto;">Save</button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-muted);margin-top:12px;">Update weekly. Runway = cash ÷ burn. Under 6 weeks is red alert.</p>
+    </div>
+
+    <div class="section-label">Annual goals</div>
+    <div class="form-section">
+      <div class="form-row">
+        <div class="form-group"><label>Revenue goal ($)</label><input id="s-rev-goal" type="number" /></div>
+        <div class="form-group"><label>Proposals goal ($)</label><input id="s-prop-goal" type="number" /></div>
+        <button class="btn btn-green" onclick="saveGoals()" style="margin-top:auto;">Save</button>
+      </div>
+    </div>
+
+    <div class="section-label">Connection</div>
+    <div class="form-section">
+      <div class="form-row">
+        <div class="form-group" style="flex:3;"><label>Apps Script URL</label><input id="s-script-url" placeholder="https://script.google.com/macros/s/..." /></div>
+        <button class="btn btn-green" onclick="updateScriptUrl()" style="margin-top:auto;">Update</button>
+        <button class="btn btn-outline" onclick="testConnection()" style="margin-top:auto;">Test connection</button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-muted);margin-top:12px;" id="connection-status"></p>
+    </div>
+
+    <div class="section-label">Reset</div>
+    <div class="form-section">
+      <button class="btn btn-danger" onclick="resetAll()">Reset to seed data</button>
+      <span style="font-size:12px;color:var(--ink-muted);margin-left:12px;">Clears local cache and reloads from spreadsheet</span>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+const STORAGE_KEY = 'sm_config';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmt = v => '$' + Math.round(v).toLocaleString();
+
+let config = { scriptUrl: "https://script.google.com/macros/s/AKfycbzp4TLIOsxBV14dDZGH7G1nS62gKH9pjsTt9EsapAAwTHrDSOEDvRXoPSu8r_MNgBA0gQ/exec", localMode: false };
+let state  = { deals: [], payments: [], settings: { cash:0, burn:4000, revGoal:300000, propGoal:500000 } };
+let chartInst = null;
+
+// ── INIT ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    config = JSON.parse(saved);
+    if (config.scriptUrl || config.localMode) {
+      document.getElementById('setup-overlay').style.display = 'none';
+      init();
+    }
+  }
+  document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+});
+
+function init() {
+  if (config.localMode) {
+    loadLocalSeed();
+    renderAll();
+  } else {
+    syncNow();
+  }
+}
+
+// ── SETUP ────────────────────────────────────────────────────
+function saveScriptUrl() {
+  const url = document.getElementById('script-url-input').value.trim();
+  if (!url.startsWith('https://script.google.com')) { toast('Paste a valid Apps Script URL'); return; }
+  config.scriptUrl = url;
+  config.localMode = false;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  document.getElementById('setup-overlay').style.display = 'none';
+  init();
+}
+
+function useLocalMode() {
+  config.localMode = true;
+  config.scriptUrl = '';
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  document.getElementById('setup-overlay').style.display = 'none';
+  init();
+}
+
+// ── SYNC ─────────────────────────────────────────────────────
+async function syncNow() {
+  if (config.localMode) { toast('Offline mode — changes save in browser only'); return; }
+  if (!config.scriptUrl) { toast('No script URL configured'); return; }
+  setSyncState('syncing', 'Syncing...');
+  try {
+    const res = await fetch(config.scriptUrl + '?action=read');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    state.deals    = data.pipeline   || [];
+    state.payments = data.payments   || [];
+    state.settings = data.settings   || state.settings;
+    setSyncState('ok', 'Synced');
+    document.getElementById('header-sub').textContent = 'Last synced ' + new Date().toLocaleTimeString();
+    renderAll();
+    toast('Synced with Google Sheets');
+  } catch(e) {
+    setSyncState('error', 'Sync failed');
+    toast('Sync failed — check your script URL');
+  }
+}
+
+function setSyncState(state, label) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  document.getElementById('sync-label').textContent = label;
+}
+
+async function apiPost(body) {
+  if (config.localMode) return { success: true };
+  const res = await fetch(config.scriptUrl, {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+// ── LOCAL SEED ───────────────────────────────────────────────
+function loadLocalSeed() {
+  state.deals = [
+    {id:1,month:'Jan',client:'ChAIL',amount:20000,type:'Team',referral:'',status:'Closed',closedAmount:20000,isCR2025:false},
+    {id:2,month:'Jan',client:'Valerie Maze',amount:1500,type:'1-1',referral:'',status:'Closed',closedAmount:1500,isCR2025:false},
+    {id:3,month:'Jan',client:'Texas CAC',amount:2000,type:'Speaking',referral:'Kerrie',status:'Closed',closedAmount:2000,isCR2025:false},
+    {id:4,month:'Jan',client:'Alex Aldridge',amount:12000,type:'1-1',referral:'',status:'Closed',closedAmount:12000,isCR2025:false},
+    {id:5,month:'Jan',client:'Mary & Nick / BGP',amount:11000,type:'Team',referral:'Jared',status:'Closed',closedAmount:11000,isCR2025:false},
+    {id:6,month:'Feb',client:'The Kidz Club',amount:96000,type:'Team',referral:'Jason Z',status:'Closed',closedAmount:55200,isCR2025:false},
+    {id:7,month:'Feb',client:'CIC',amount:13000,type:'1-1',referral:'Deborah S',status:'Closed',closedAmount:21500,isCR2025:false},
+    {id:8,month:'',client:'WCCAC',amount:42801,type:'Team',referral:'',status:'Closed',closedAmount:42801,isCR2025:true},
+    {id:9,month:'',client:'True Health',amount:31815,type:'Team',referral:'',status:'Closed',closedAmount:31815,isCR2025:true},
+  ];
+  state.payments = [
+    {id:1,client:'ChAIL',amount:7452,date:'2026-01-15',note:'Partial'},
+    {id:2,client:'CCLF',amount:12125,date:'2026-01-20',note:''},
+    {id:3,client:'WCCAC',amount:14276,date:'2026-02-01',note:'Partial'},
+    {id:4,client:'True Health',amount:10605,date:'2026-02-10',note:'Partial'},
+    {id:5,client:'Alex Aldridge',amount:12000,date:'2026-01-05',note:'Paid in full'},
+    {id:6,client:'Valerie Maze',amount:1550,date:'2026-01-08',note:'Paid in full'},
+    {id:7,client:'Mary & Nick / BGP',amount:4000,date:'2026-02-15',note:'Partial'},
+    {id:8,client:'CIC',amount:7000,date:'2026-02-28',note:'Partial'},
+    {id:9,client:'Texas CAC',amount:2000,date:'2026-03-01',note:''},
+  ];
+  state.settings = {cash:78817,burn:4000,revGoal:300000,propGoal:500000};
+}
+
+// ── STATS ────────────────────────────────────────────────────
+function getStats() {
+  const closed2026 = state.deals.filter(d => d.status === 'Closed' && !d.isCR2025);
+  const proposed2026 = state.deals.filter(d => !d.isCR2025);
+  const totalClosed = closed2026.reduce((s,d) => s + (d.closedAmount || d.amount), 0);
+  const totalProposed = proposed2026.reduce((s,d) => s + d.amount, 0);
+  const won = closed2026.length;
+  const decided = proposed2026.filter(d => d.status === 'Closed' || d.status === 'Lost').length;
+  const rate = decided > 0 ? won / decided : (won > 0 ? 1 : 0);
+
+  const closedByClient = {};
+  state.deals.filter(d => d.status === 'Closed').forEach(d => {
+    closedByClient[d.client] = (closedByClient[d.client] || 0) + (d.closedAmount || d.amount);
+  });
+  const paidByClient = {};
+  state.payments.forEach(p => { paidByClient[p.client] = (paidByClient[p.client] || 0) + p.amount; });
+  const crRows = Object.entries(closedByClient)
+    .map(([c,v]) => ({ client: c, cr: Math.max(0, v - (paidByClient[c] || 0)) }))
+    .filter(r => r.cr > 0)
+    .sort((a,b) => b.cr - a.cr);
+  const totalCR = crRows.reduce((s,r) => s + r.cr, 0);
+  const runway = state.settings.burn > 0 ? state.settings.cash / state.settings.burn : 999;
+  return { totalClosed, totalProposed, rate, won, decided, totalCR, crRows, runway };
+}
+
+function runwayLabel(w) {
+  if (w >= 16) return { text: 'Great shape', color: '#1B4332' };
+  if (w >= 10) return { text: 'Healthy', color: '#2D6A4F' };
+  if (w >= 6)  return { text: 'Heads up', color: '#D68910' };
+  return { text: 'Red alert', color: '#C0392B' };
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function renderAll() {
+  renderOverview();
+  renderPipeline();
+  renderPayments();
+  loadSettingsForm();
+  populatePayClient();
+}
+
+function renderOverview() {
+  const s = getStats();
+  const revGoal  = state.settings.revGoal  || 300000;
+  const propGoal = state.settings.propGoal || 500000;
+
+  document.getElementById('m-closed').textContent    = fmt(s.totalClosed);
+  document.getElementById('m-closed-sub').textContent = Math.round(s.totalClosed / revGoal * 100) + '% of annual goal';
+  document.getElementById('m-proposed').textContent   = fmt(s.totalProposed);
+  document.getElementById('m-proposed-sub').textContent = Math.round(s.totalProposed / propGoal * 100) + '% of annual goal';
+  document.getElementById('m-rate').textContent       = Math.round(s.rate * 100) + '%';
+  document.getElementById('m-rate-sub').textContent   = s.won + ' of ' + Math.max(s.won, s.decided) + ' deals';
+  document.getElementById('m-cash').textContent       = fmt(state.settings.cash);
+  document.getElementById('m-cr').textContent         = fmt(s.totalCR);
+
+  const rl = runwayLabel(s.runway);
+  document.getElementById('m-runway').innerHTML = '<span style="color:' + rl.color + ';">' + rl.text + ' (' + Math.round(s.runway) + ' wks)</span>';
+
+  const alert = document.getElementById('alert-box');
+  if (s.runway < 6) {
+    alert.style.display = '';
+    alert.className = 'alert alert-red';
+    alert.textContent = 'BD red alert — runway under 6 weeks. Work every warm lead now.';
+  } else if (s.runway < 10) {
+    alert.style.display = '';
+    alert.className = 'alert alert-amber';
+    alert.textContent = 'BD heads up — runway under 10 weeks. Keep pipeline moving.';
+  } else {
+    alert.style.display = 'none';
+  }
+
+  // Goals
+  const g = document.getElementById('goals-card');
+  g.innerHTML = [
+    { label: 'Revenue (YTD)', actual: s.totalClosed, goal: revGoal },
+    { label: 'Proposals (YTD)', actual: s.totalProposed, goal: propGoal },
+  ].map(row => {
+    const pct = Math.min(100, Math.round(row.actual / row.goal * 100));
+    const color = pct >= 100 ? '#1B4332' : pct >= 50 ? '#D68910' : '#378ADD';
+    return `<div class="prog-wrap">
+      <div class="prog-labels"><span>${row.label}</span><span style="font-weight:500;">${fmt(row.actual)} / ${fmt(row.goal)}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color};"></div></div>
+      <div class="prog-note" style="color:${color};">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // CR table
+  const cr = document.getElementById('cr-table');
+  if (s.crRows.length === 0) {
+    cr.innerHTML = '<div style="padding:14px 0;font-size:13px;color:var(--ink-muted);">No outstanding CR</div>';
+  } else {
+    cr.innerHTML = s.crRows.map(r =>
+      `<div class="trow"><span style="font-weight:500;flex:1;">${r.client}</span><span style="color:var(--gold);font-family:\'DM Mono\',monospace;font-size:13px;">${fmt(r.cr)}</span></div>`
+    ).join('');
+  }
+
+  renderChart();
+}
+
+function renderChart() {
+  const monthData = {};
+  MONTHS.forEach(m => { monthData[m] = { proposed: 0, closed: 0 }; });
+  state.deals.filter(d => !d.isCR2025 && d.month).forEach(d => {
+    if (monthData[d.month]) {
+      monthData[d.month].proposed += d.amount;
+      if (d.status === 'Closed') monthData[d.month].closed += (d.closedAmount || d.amount);
+    }
+  });
+  const active = MONTHS.filter(m => monthData[m].proposed > 0 || monthData[m].closed > 0);
+  const labels   = active.length > 0 ? active : ['Jan', 'Feb'];
+  const proposed = labels.map(m => monthData[m] ? monthData[m].proposed : 0);
+  const closed   = labels.map(m => monthData[m] ? monthData[m].closed : 0);
+  const ctx = document.getElementById('revChart');
+  if (!ctx) return;
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Proposed', data: proposed, backgroundColor: '#B5D4F4', borderRadius: 5 },
+      { label: 'Closed',   data: closed,   backgroundColor: '#2D6A4F', borderRadius: 5 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8A8A8A', autoSkip: false } },
+        y: { ticks: { color: '#8A8A8A', callback: v => '$' + (v/1000) + 'K' }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+}
+
+function renderPipeline() {
+  const el = document.getElementById('pipeline-table');
+  if (state.deals.length === 0) { el.innerHTML = '<div style="padding:16px 0;color:var(--ink-muted);font-size:13px;">No deals yet — add one above.</div>'; return; }
+  const sorted = [...state.deals].sort((a,b) => {
+    const o = { Closed:0, Verbal:1, Proposed:2, Lost:3 };
+    return (o[a.status]||2) - (o[b.status]||2);
+  });
+  el.innerHTML =
+    `<div class="trow trow-hdr">
+      <span style="flex:2;">Client</span>
+      <span style="flex:1;">Proposed</span>
+      <span style="flex:1;">Closed</span>
+      <span style="flex:1;">Type</span>
+      <span style="flex:1;">Month</span>
+      <span style="flex:1;">Status</span>
+      <span style="width:50px;"></span>
+    </div>` +
+    sorted.map(d => `<div class="trow">
+      <span style="flex:2;font-weight:500;">${d.client}${d.isCR2025 ? ' <span style="font-size:10px;color:var(--ink-muted);">\'25</span>' : ''}</span>
+      <span style="flex:1;font-family:\'DM Mono\',monospace;font-size:12px;">${fmt(d.amount)}</span>
+      <span style="flex:1;font-family:\'DM Mono\',monospace;font-size:12px;">${d.closedAmount ? fmt(d.closedAmount) : '—'}</span>
+      <span style="flex:1;color:var(--ink-muted);">${d.type || '—'}</span>
+      <span style="flex:1;color:var(--ink-muted);">${d.month || '—'}</span>
+      <span style="flex:1;"><span class="badge badge-${d.status.toLowerCase()}">${d.status}</span></span>
+      <span style="width:50px;text-align:right;"><button class="btn btn-outline btn-sm" onclick="editDeal(${d.id})">Edit</button></span>
+    </div>`).join('');
+}
+
+function renderPayments() {
+  const el = document.getElementById('payment-table');
+  if (state.payments.length === 0) { el.innerHTML = '<div style="padding:16px 0;color:var(--ink-muted);font-size:13px;">No payments logged yet.</div>'; return; }
+  const sorted = [...state.payments].sort((a,b) => b.date.localeCompare(a.date));
+  el.innerHTML =
+    `<div class="trow trow-hdr">
+      <span style="flex:2;">Client</span>
+      <span style="flex:1;">Amount</span>
+      <span style="flex:1;">Date</span>
+      <span style="flex:2;">Note</span>
+    </div>` +
+    sorted.map(p => `<div class="trow">
+      <span style="flex:2;font-weight:500;">${p.client}</span>
+      <span style="flex:1;color:var(--green);font-family:\'DM Mono\',monospace;font-size:12px;">${fmt(p.amount)}</span>
+      <span style="flex:1;color:var(--ink-muted);">${p.date}</span>
+      <span style="flex:2;color:var(--ink-muted);">${p.note || ''}</span>
+    </div>`).join('');
+}
+
+// ── ACTIONS ──────────────────────────────────────────────────
+async function addDeal() {
+  const client = document.getElementById('p-client').value.trim();
+  const amount = parseFloat(document.getElementById('p-amount').value) || 0;
+  if (!client || !amount) { toast('Client name and amount are required'); return; }
+  const deal = {
+    id: Date.now(),
+    month:        document.getElementById('p-month').value,
+    client,
+    amount,
+    type:         document.getElementById('p-type').value,
+    referral:     document.getElementById('p-referral').value.trim(),
+    status:       document.getElementById('p-status').value,
+    closedAmount: document.getElementById('p-status').value === 'Closed' ? amount : null,
+    isCR2025:     false,
+  };
+  state.deals.push(deal);
+  try {
+    await apiPost({ action: 'addDeal', deal });
+    toast('Deal added and saved to sheet');
+  } catch(e) { toast('Deal added (sheet sync failed)'); }
+  document.getElementById('p-client').value = '';
+  document.getElementById('p-amount').value = '';
+  document.getElementById('p-referral').value = '';
+  renderAll();
+}
+
+function editDeal(id) {
+  const d = state.deals.find(x => x.id == id);
+  if (!d) return;
+  const ns = prompt('Update status for ' + d.client + ':\nProposed / Verbal / Closed / Lost', d.status);
+  if (!ns) return;
+  const valid = ['Proposed','Verbal','Closed','Lost'];
+  const match = valid.find(v => v.toLowerCase() === ns.trim().toLowerCase());
+  if (!match) { toast('Valid statuses: Proposed, Verbal, Closed, Lost'); return; }
+  d.status = match;
+  if (match === 'Closed' && !d.closedAmount) {
+    const ca = prompt('Closed amount for ' + d.client + ':', d.amount);
+    d.closedAmount = parseFloat(ca) || d.amount;
+  }
+  apiPost({ action: 'updateDeal', deal: d }).catch(() => {});
+  renderAll();
+  toast('Deal updated');
+}
+
+function populatePayClient() {
+  const sel = document.getElementById('pay-client');
+  const clients = [...new Set(state.deals.filter(d => d.status === 'Closed').map(d => d.client))].sort();
+  sel.innerHTML = clients.map(c => `<option>${c}</option>`).join('');
+}
+
+async function logPayment() {
+  const client = document.getElementById('pay-client').value;
+  const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
+  const date   = document.getElementById('pay-date').value;
+  const note   = document.getElementById('pay-note').value.trim();
+  if (!client || !amount) { toast('Client and amount required'); return; }
+  const payment = { id: Date.now(), client, amount, date, note };
+  state.payments.push(payment);
+  try {
+    await apiPost({ action: 'logPayment', payment });
+    toast('Payment logged and saved to sheet');
+  } catch(e) { toast('Payment logged (sheet sync failed)'); }
+  document.getElementById('pay-amount').value = '';
+  document.getElementById('pay-note').value = '';
+  renderAll();
+}
+
+function loadSettingsForm() {
+  document.getElementById('s-cash').value     = state.settings.cash     || '';
+  document.getElementById('s-burn').value     = state.settings.burn     || '';
+  document.getElementById('s-rev-goal').value = state.settings.revGoal  || '';
+  document.getElementById('s-prop-goal').value= state.settings.propGoal || '';
+  document.getElementById('s-script-url').value = config.scriptUrl || '';
+}
+
+async function saveSettings() {
+  state.settings.cash = parseFloat(document.getElementById('s-cash').value) || 0;
+  state.settings.burn = parseFloat(document.getElementById('s-burn').value) || 4000;
+  try {
+    await apiPost({ action: 'saveSettings', settings: state.settings });
+    toast('Settings saved to sheet');
+  } catch(e) { toast('Settings saved (sheet sync failed)'); }
+  renderAll();
+}
+
+async function saveGoals() {
+  state.settings.revGoal  = parseFloat(document.getElementById('s-rev-goal').value)  || 300000;
+  state.settings.propGoal = parseFloat(document.getElementById('s-prop-goal').value) || 500000;
+  try {
+    await apiPost({ action: 'saveSettings', settings: state.settings });
+    toast('Goals saved to sheet');
+  } catch(e) { toast('Goals saved (sheet sync failed)'); }
+  renderAll();
+}
+
+function updateScriptUrl() {
+  const url = document.getElementById('s-script-url').value.trim();
+  config.scriptUrl = url;
+  config.localMode = !url;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  toast('Script URL updated — syncing...');
+  syncNow();
+}
+
+async function testConnection() {
+  const url = document.getElementById('s-script-url').value.trim();
+  if (!url) { toast('Enter a URL first'); return; }
+  document.getElementById('connection-status').textContent = 'Testing...';
+  try {
+    const res = await fetch(url + '?action=read');
+    const data = await res.json();
+    if (data.pipeline !== undefined) {
+      document.getElementById('connection-status').textContent = 'Connected — found ' + data.pipeline.length + ' deals.';
+    } else {
+      document.getElementById('connection-status').textContent = 'Connected but unexpected response.';
+    }
+  } catch(e) {
+    document.getElementById('connection-status').textContent = 'Connection failed. Check URL and deployment settings.';
+  }
+}
+
+function resetAll() {
+  if (!confirm('Clear local cache and reload from sheet?')) return;
+  if (config.localMode) { loadLocalSeed(); renderAll(); toast('Reset to seed data'); return; }
+  syncNow();
+}
+
+// ── TABS ────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelector('.nav-tab[onclick="showTab(\'' + name + '\')"]').classList.add('active');
+  document.getElementById('sec-' + name).classList.add('active');
+  if (name === 'payments') populatePayClient();
+  if (name === 'settings') loadSettingsForm();
+}
+
+// ── TOAST ────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
