@@ -301,7 +301,7 @@
         <div class="metric-sub" id="m-proposed-sub"></div>
       </div>
       <div class="metric green-accent">
-        <div class="metric-label">Close rate</div>
+        <div class="metric-label">In bank / deposited</div>
         <div class="metric-value" id="m-rate">—</div>
         <div class="metric-sub" id="m-rate-sub"></div>
       </div>
@@ -596,8 +596,9 @@ function renderOverview() {
   document.getElementById('m-closed-sub').textContent = Math.round(s.totalClosed / revGoal * 100) + '% of annual goal';
   document.getElementById('m-proposed').textContent   = fmt(s.totalProposed);
   document.getElementById('m-proposed-sub').textContent = Math.round(s.totalProposed / propGoal * 100) + '% of annual goal';
-  document.getElementById('m-rate').textContent       = Math.round(s.rate * 100) + '%';
-  document.getElementById('m-rate-sub').textContent   = s.won + ' of ' + Math.max(s.won, s.decided) + ' deals';
+  const totalInBank = state.deals.reduce((sum, d) => sum + (d.inBank || 0), 0);
+  document.getElementById('m-rate').textContent       = '$' + Math.round(totalInBank).toLocaleString();
+  document.getElementById('m-rate-sub').textContent   = Math.round(s.rate * 100) + '% close rate (' + s.won + ' of ' + Math.max(s.won, s.decided) + ' deals)';
   document.getElementById('m-cash').textContent       = fmt(state.settings.cash);
   document.getElementById('m-cr').textContent         = fmt(s.totalCR);
 
